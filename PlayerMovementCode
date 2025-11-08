@@ -1,0 +1,95 @@
+using UnityEngine;
+
+public class PlayerMovement : MonoBehaviour
+{
+    // ✨ Geliştiricinin Hız, Zıplama vb. Değerleri Ayarlayabileceği Alan
+    [Header("Hareket Ayarları")]
+    public float movementSpeed = 5f; // Karakterin yürüme hızı
+    public float sprintSpeed = 10f;  // Karakterin depar hızı
+    public float jumpForce = 8f;     // Zıplama kuvveti (Yüksekliği)
+    public float gravity = 20f;      // Karakteri aşağı çeken yerçekimi kuvveti
+
+    // 🧱 Gerekli Bileşen Referansları
+    private CharacterController characterController;
+    private Vector3 moveDirection; // Karakterin hareket yönünü tutan vektör
+
+    void Start()
+    {
+        // 1. KarakterController bileşenini başlatırken al
+        characterController = GetComponent<CharacterController>();
+
+        // Güvenlik kontrolü: Bileşen mevcut mu?
+        if (characterController == null)
+        {
+            Debug.LogError("CharacterController bulunamadı! Lütfen Player GameObject'ine ekleyin.");
+            enabled = false; // Script'i kapat
+        }
+    }
+
+    void Update()
+    {
+        // Karakter Controller ile hareketler Update içinde yapılır.
+        HandleMovement();
+        HandleGravityAndJump();
+    }
+
+    private void HandleMovement()
+    {
+        // 1. Girdi Alımı: Yatay ve Dikey eksen girdilerini al
+        float horizontalInput = Input.GetAxis("Horizontal"); // A/D veya Sol/Sağ
+        float verticalInput = Input.GetAxis("Vertical");   // W/S veya Yukarı/Aşağı
+
+        // 2. Yön Hesaplama: Girdileri dünya uzayında (World Space) bir yöne çevir
+        Vector3 forward = transform.forward; // Karakterin baktığı yön (Z ekseni)
+        Vector3 right = transform.right;   // Karakterin sağa baktığı yön (X ekseni)
+
+        // Sadece XZ düzleminde (Yerde) hareket etmesi için Y ekseni 0 yapılır
+        moveDirection.x = (forward.x * verticalInput) + (right.x * horizontalInput);
+        moveDirection.z = (forward.z * verticalInput) + (right.z * horizontalInput);
+        
+        // Vektörün büyüklüğünü (Magnitude) 1'de tut, böylece çapraz hareketler hızlı olmaz
+        if (moveDirection.x != 0 || moveDirection.z != 0)
+        {
+            moveDirection.Normalize();
+        }
+
+        // 3. Hız Uygulama: Harekete hızı uygula
+        float currentSpeed = movementSpeed;
+        
+        // Depar kontrolü: Sol Shift tuşuna basılıyorsa depar hızını kullan
+        if (Input.GetKey(KeyCode.LeftShift))
+        {
+            currentSpeed = sprintSpeed;
+        }
+
+        moveDirection.x *= currentSpeed;
+        moveDirection.z *= currentSpeed;
+    }
+
+    private void HandleGravityAndJump()
+    {
+        // 1. Zemin Kontrolü: Karakter yerde mi? (CharacterController'ın yerleşik özelliği)
+        if (characterController.isGrounded)
+        {
+            // Yerdeyken yerçekimini sıfırla (karakterin aşağı inmesini önler)
+            // Ancak hafif bir negatif değer tutmak, zeminle temasın kaybolmasını önler
+            moveDirection.y = -0.5f; 
+
+            // 2. Zıplama: Boşluk tuşuna basıldıysa
+            if (Input.GetButtonDown("Jump")) // Unity Input Manager'daki "Jump" (Varsayılan: Space)
+            {
+                moveDirection.y = jumpForce; // Y eksenine zıplama kuvveti uygula
+            }
+        }
+        else
+        {
+            // Yerde değilse: Yerçekimi kuvvetini uygulamaya devam et
+            // moveDirection.y'yi zamanla azalt, böylece karakter düşer
+            moveDirection.y -= gravity * Time.deltaTime;
+        }
+
+        // 3. Son Hareket: Tüm hesaplamaları CharacterController'a uygula
+        // Time.deltaTime, cihaz hızına bakmaksızın saniyede tutarlı hareket sağlar.
+        characterController.Move(moveDirection * Time.deltaTime);
+    }
+}
