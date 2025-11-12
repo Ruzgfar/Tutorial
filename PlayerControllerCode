@@ -1,0 +1,113 @@
+using UnityEngine;
+
+public class PlayerController : MonoBehaviour
+{
+    // Hız ayarları
+    [Header("Movement Settings")]
+    public float moveSpeed = 5.0f;
+    public float rotationSpeed = 500.0f;
+
+    // Zıplama ayarları
+    [Header("Jump Settings")]
+    public float jumpForce = 8.0f;
+    public float gravity = 20.0f;
+    public int maxJumps = 2; // Çift zıplama için 2
+
+    private CharacterController controller;
+    private Vector3 moveDirection;
+    private int jumpCount = 0;
+
+    void Start()
+    {
+        // CharacterController bileşenini al
+        controller = GetComponent<CharacterController>();
+
+        // Oyun başladığında imleci gizle ve kilitle
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
+
+    void Update()
+    {
+        // 1. Yatay Hareket Girişlerini Al
+        float horizontalInput = Input.GetAxis("Horizontal");
+        float verticalInput = Input.GetAxis("Vertical");
+
+        // Karakter Yere Değiyor mu?
+        if (controller.isGrounded)
+        {
+            // Yerdeyken hareket yönünü hesapla
+            Vector3 forward = transform.forward;
+            Vector3 right = transform.right;
+
+            // Girişe göre yeni yatay hareket yönünü belirle
+            Vector3 desiredMove = forward * verticalInput + right * horizontalInput;
+            moveDirection.x = desiredMove.x * moveSpeed;
+            moveDirection.z = desiredMove.z * moveSpeed;
+
+            // Yerdeyken yerçekimini sıfırla (ufak bir negatif değer bırakmak physics bug'larını önleyebilir)
+            moveDirection.y = -0.5f;
+
+            // Zıplama sayacını sıfırla
+            jumpCount = 0;
+
+            // Zıplama Girişi
+            if (Input.GetButtonDown("Jump"))
+            {
+                Jump();
+            }
+        }
+        else // Karakter Havada
+        {
+            // Havada da zıplama Girişi (Çift Zıplama)
+            if (Input.GetButtonDown("Jump"))
+            {
+                Jump();
+            }
+        }
+
+        // 2. Yerçekimi Uygula
+        moveDirection.y -= gravity * Time.deltaTime;
+
+        // 3. Karakteri Hareket Ettir
+        controller.Move(moveDirection * Time.deltaTime);
+
+        // 4. Karakter Yönünü Kameraya Göre Ayarla
+        HandleRotation(horizontalInput, verticalInput);
+    }
+
+    void Jump()
+    {
+        if (jumpCount < maxJumps)
+        {
+            // Zıplama kuvvetini uygula
+            moveDirection.y = jumpForce;
+            // Zıplama sayacını artır
+            jumpCount++;
+        }
+    }
+
+    void HandleRotation(float horizontalInput, float verticalInput)
+    {
+        // Sadece hareket ederken dönme
+        if (horizontalInput != 0 || verticalInput != 0)
+        {
+            // Hareketin istenen yönünü hesapla (Y bileşeni hariç)
+            Vector3 targetDirection = new Vector3(moveDirection.x, 0, moveDirection.z);
+
+            // Eğer bir hedef yön varsa (yani karakter hareket ediyorsa)
+            if (targetDirection.magnitude > 0)
+            {
+                // Hedef rotasyonu hesapla
+                Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
+
+                // Mevcut rotasyondan hedef rotasyona yumuşak geçiş yap
+                transform.rotation = Quaternion.RotateTowards(
+                    transform.rotation,
+                    targetRotation,
+                    rotationSpeed * Time.deltaTime
+                );
+            }
+        }
+    }
+}
