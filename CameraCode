@@ -1,0 +1,42 @@
+using UnityEngine;
+
+public class CameraController : MonoBehaviour
+{
+    [Header("Target")]
+    public Transform target; // Karakterinizin Transform'u buraya sürüklenmeli
+
+    [Header("Camera Settings")]
+    public float distance = 5.0f; // Karakterden uzaklık
+    public float sensitivity = 4.0f; // Fare hassasiyeti
+    public float smoothing = 10.0f; // Kamera hareketinin yumuşaklığı
+
+    private float currentX = 0.0f;
+    private float currentY = 0.0f;
+
+    void LateUpdate()
+    {
+        if (target == null)
+            return;
+
+        // Fare girişini al
+        currentX += Input.GetAxis("Mouse X") * sensitivity;
+        currentY -= Input.GetAxis("Mouse Y") * sensitivity;
+
+        // Y ekseni kısıtlamaları (Kameranın dikeyde çok dönmesini engelle)
+        currentY = Mathf.Clamp(currentY, -60f, 60f);
+
+        // Hedef rotasyonu hesapla
+        Quaternion rotation = Quaternion.Euler(currentY, currentX, 0);
+
+        // Kamera pozisyonunu hesapla (Karakterin arkasında, belli bir mesafede)
+        Vector3 position = target.position - (rotation * Vector3.forward * distance);
+
+        // Kameranın pozisyon ve rotasyonunu yumuşak bir şekilde ayarla
+        transform.position = Vector3.Lerp(transform.position, position, Time.deltaTime * smoothing);
+        transform.rotation = Quaternion.Slerp(transform.rotation, rotation, Time.deltaTime * smoothing);
+
+        // Karakterin sadece yatayda kamerayı takip etmesini sağla
+        // Bu kısım isteğe bağlıdır, PlayerController'da dönmeyi kaldırırsanız bunu kullanabilirsiniz.
+        // target.rotation = Quaternion.Euler(0, currentX, 0);
+    }
+}
